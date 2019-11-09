@@ -54,7 +54,22 @@ class PlanController {
   }
 
   async delete(req, res) {
-    return res.json();
+    const { id } = req.params;
+    const plan = await Plan.findByPk(id);
+
+    try {
+      await Plan.destroy({
+        where: {
+          id,
+        },
+      });
+    } catch (error) {
+      return res.json(error);
+    }
+
+    return res.status(200).json({
+      message: `Plan ${plan.title} deleted with success`,
+    });
   }
 }
 
