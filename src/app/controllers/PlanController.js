@@ -57,6 +57,10 @@ class PlanController {
     const { id } = req.params;
     const plan = await Plan.findByPk(id);
 
+    if (!plan) {
+      res.status(400).json({ error: "This plain don't exists or deleted" });
+    }
+
     try {
       await Plan.destroy({
         where: {
