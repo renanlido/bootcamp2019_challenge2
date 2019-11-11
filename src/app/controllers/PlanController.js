@@ -10,15 +10,17 @@ class PlanController {
   }
 
   async store(req, res) {
+    const { title } = req.body;
+
     const titleExists = await Plan.findOne({
-      where: { title: req.body.title },
+      where: { title },
     });
 
     if (titleExists) {
       res.status(400).json({ error: 'This title already exists' });
     }
 
-    const { id, title, duration, price } = await Plan.create(req.body);
+    const { id, duration, price } = await Plan.create(req.body);
 
     return res.json({
       id,
@@ -29,19 +31,20 @@ class PlanController {
   }
 
   async update(req, res) {
+    const { index } = req.params;
     const { title } = req.body;
 
-    const titleExists = await Plan.findOne({
-      where: {
-        title,
-      },
-    });
+    const plan = await Plan.findByPk(index);
 
-    if (titleExists) {
-      return res.status(400).json({ error: 'This title already exists' });
+    if (title !== plan.title) {
+      const planExists = await Plan.findOne({
+        where: { title },
+      });
+
+      if (planExists) {
+        return res.status(400).json({ error: 'This title already exists' });
+      }
     }
-
-    const plan = await Plan.findByPk(req.params.id);
 
     const { id, duration, price } = await plan.update(req.body);
 
@@ -54,8 +57,8 @@ class PlanController {
   }
 
   async delete(req, res) {
-    const { id } = req.params;
-    const plan = await Plan.findByPk(id);
+    const { index } = req.params;
+    const plan = await Plan.findByPk(index);
 
     if (!plan) {
       res.status(400).json({ error: "This plain don't exists or deleted" });
@@ -64,7 +67,7 @@ class PlanController {
     try {
       await Plan.destroy({
         where: {
-          id,
+          id: index,
         },
       });
     } catch (error) {
