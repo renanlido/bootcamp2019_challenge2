@@ -33,7 +33,7 @@ class CheckinController {
       return res.status(404).json({ error: 'Student not exists or deleted' });
     }
 
-    const checkins = await Checkin.findAll({
+    const checkins = await Checkin.findAndCountAll({
       where: {
         student_id: index,
         created_at: {
@@ -42,7 +42,7 @@ class CheckinController {
       },
     });
 
-    if (checkins.length >= 5) {
+    if (checkins.count >= 5) {
       return res
         .status(401)
         .json({ error: 'You can only do 5 check in per week' });
