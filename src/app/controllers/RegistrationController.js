@@ -34,7 +34,7 @@ class RegistrationController {
     return res.json(entries);
   }
 
-  async create(req, res) {
+  async store(req, res) {
     const schema = Yup.object().shape({
       student_id: Yup.number().required(),
       plan_id: Yup.number().required(),
