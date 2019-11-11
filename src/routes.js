@@ -6,10 +6,15 @@ import SessionController from './app/controllers/SessionController';
 import authMiddleware from './app/middlewares/auth';
 import PlanController from './app/controllers/PlanController';
 import RegistrationController from './app/controllers/RegistrationController';
+import CheckinController from './app/controllers/CheckinController';
 
 const routes = new Router();
 
+routes.get('/students/:index/checkin', CheckinController.index);
+routes.post('/students/:index/checkin', CheckinController.store);
+
 routes.post('/users', UserController.store);
+
 routes.post('/sessions', SessionController.store);
 
 routes.use(authMiddleware);
@@ -27,7 +32,7 @@ routes.delete('/plans/:index', PlanController.delete);
 routes.put('/plans/:index', PlanController.update);
 
 routes.get('/registrations', RegistrationController.index);
-routes.post('/registrations', RegistrationController.create);
+routes.post('/registrations', RegistrationController.store);
 routes.put('/registrations/:index', RegistrationController.update);
 routes.delete('/registrations/:index', RegistrationController.delete);
 
