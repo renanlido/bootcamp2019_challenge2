@@ -16,7 +16,7 @@ class RegistrationController {
       where: {
         canceled_at: null,
       },
-      attributes: ['id', 'start_date', 'end_date', 'price'],
+      attributes: ['id', 'start_date', 'end_date', 'price', 'expired'],
       include: [
         {
           model: Student,
