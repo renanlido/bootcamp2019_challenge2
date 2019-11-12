@@ -1,9 +1,18 @@
 import * as Yup from 'yup';
-import User from '../models/Student';
+import Student from '../models/Student';
 
 class StudentController {
+  async index(req, res) {
+    const students = await Student.findAll({
+      attributes: ['id', 'name', 'email'],
+      order: ['id'],
+    });
+
+    return res.json(students);
+  }
+
   async store(req, res) {
-    // Validation schema creation new user
+    // Validation schema creation new student
     const schema = Yup.object().shape({
       name: Yup.string().required(),
       email: Yup.string()
@@ -20,15 +29,23 @@ class StudentController {
       return res.status(400).json({ error: 'Validation fails' });
     }
 
-    const userExists = await User.findOne({ where: { email: req.body.email } });
+    const studentExists = await Student.findOne({
+      where: { email: req.body.email },
+    });
 
-    if (userExists) {
-      return res.status(400).json({ error: 'User already exists' });
+    if (studentExists) {
+      return res.status(400).json({ error: 'Student already exists' });
     }
 
-    const { id, name, email, year_birth, weight, height } = await User.create(
-      req.body
-    );
+    const {
+      id,
+      name,
+      email,
+      year_birth,
+      weight,
+      height,
+    } = await Student.create(req.body);
+
     return res.json({
       id,
       name,
@@ -40,7 +57,7 @@ class StudentController {
   }
 
   async update(req, res) {
-    // Validation schema update user
+    // Validation schema update Student
     const schema = Yup.object().shape({
       name: Yup.string(),
       email: Yup.string().email(),
@@ -58,28 +75,21 @@ class StudentController {
     const { email } = req.body;
     const { index } = req.params;
 
-    const user = await User.findByPk(index);
+    const student = await Student.findByPk(index, {
+      attributes: ['id', 'name', 'email', 'year_birth', 'weight', 'height'],
+    });
 
-    if (email !== user.email) {
-      const userExists = await User.findOne({ where: { email } });
+    if (email !== student.email) {
+      const studentExists = await Student.findOne({ where: { email } });
 
-      if (userExists) {
-        return res.status(400).json({ error: 'User already exists' });
+      if (studentExists) {
+        return res.status(400).json({ error: 'Student already exists' });
       }
     }
 
-    const { id, name, year_birth, weight, height } = await user.update(
-      req.body
-    );
+    await student.update(req.body);
 
-    return res.json({
-      id,
-      name,
-      email,
-      year_birth,
-      weight,
-      height,
-    });
+    return res.json(student);
   }
 }
 

@@ -2,6 +2,15 @@ import * as Yup from 'yup';
 import User from '../models/User';
 
 class UserController {
+  async index(req, res) {
+    const users = await User.findAll({
+      attributes: ['id', 'name', 'email'],
+      order: ['id'],
+    });
+
+    return res.json(users);
+  }
+
   async store(req, res) {
     // Validation schema creation new user
     const schema = Yup.object().shape({
