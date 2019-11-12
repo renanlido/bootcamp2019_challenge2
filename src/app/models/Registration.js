@@ -1,3 +1,4 @@
+import { isAfter } from 'date-fns';
 import Sequelize, { Model } from 'sequelize';
 
 class Registration extends Model {
@@ -8,6 +9,12 @@ class Registration extends Model {
         end_date: Sequelize.DATE,
         price: Sequelize.FLOAT,
         canceled_at: Sequelize.DATE,
+        expired: {
+          type: Sequelize.VIRTUAL,
+          get() {
+            return isAfter(new Date(), this.end_date);
+          },
+        },
       },
       {
         sequelize,
