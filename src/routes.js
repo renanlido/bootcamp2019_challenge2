@@ -7,17 +7,27 @@ import authMiddleware from './app/middlewares/auth';
 import PlanController from './app/controllers/PlanController';
 import RegistrationController from './app/controllers/RegistrationController';
 import CheckinController from './app/controllers/CheckinController';
+import HelpOrderController from './app/controllers/HelpOrderController';
+import UnansweredHelpOrderController from './app/controllers/UnansweredHelpOrderController';
 
 const routes = new Router();
-
-routes.get('/students/:index/checkin', CheckinController.index);
-routes.post('/students/:index/checkin', CheckinController.store);
 
 routes.post('/users', UserController.store);
 
 routes.post('/sessions', SessionController.store);
 
+routes.get('/students/:index/help_orders', HelpOrderController.index);
+routes.post('/students/:index/help_orders', HelpOrderController.store);
+
+routes.post('/students/:index/checkins', CheckinController.store);
+
 routes.use(authMiddleware);
+
+routes.put('/students/help_orders/:index/answer', HelpOrderController.update);
+routes.get(
+  '/students/help_orders/unanswereds',
+  UnansweredHelpOrderController.index
+);
 
 routes.put('/users', UserController.update);
 routes.get('/users', UserController.index);
