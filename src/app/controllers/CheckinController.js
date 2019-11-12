@@ -1,4 +1,4 @@
-import { subDays, isAfter } from 'date-fns';
+import { subDays } from 'date-fns';
 import { Op } from 'sequelize';
 import Checkin from '../models/Checkin';
 import Student from '../models/Student';
@@ -37,13 +37,14 @@ class CheckinController {
     const register = await Registration.findOne({
       where: {
         student_id,
-        canceled_at: null,
       },
     });
 
-    const endDate = register.end_date;
+    if (register.canceled_at) {
+      return res.status(401).json({ error: 'Your plan is canceled' });
+    }
 
-    if (isAfter(new Date(), endDate)) {
+    if (register.expired) {
       return res.status(401).json({ error: 'Your plan is expired.' });
     }
 
