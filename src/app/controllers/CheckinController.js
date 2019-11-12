@@ -1,7 +1,8 @@
-import { subDays } from 'date-fns';
+import { subDays, isAfter } from 'date-fns';
 import { Op } from 'sequelize';
 import Checkin from '../models/Checkin';
 import Student from '../models/Student';
+import Registration from '../models/Registration';
 
 class CheckinController {
   async index(req, res) {
@@ -25,17 +26,30 @@ class CheckinController {
   }
 
   async store(req, res) {
-    const { index } = req.params;
-    const student = await Student.findByPk(index);
+    const student_id = req.params.index;
+    const student = await Student.findByPk(student_id);
     const date = new Date();
 
     if (!student) {
       return res.status(404).json({ error: 'Student not exists or deleted' });
     }
 
+    const register = await Registration.findOne({
+      where: {
+        student_id,
+        canceled_at: null,
+      },
+    });
+
+    const endDate = register.end_date;
+
+    if (isAfter(new Date(), endDate)) {
+      return res.status(401).json({ error: 'Your plan is expired.' });
+    }
+
     const checkins = await Checkin.findAndCountAll({
       where: {
-        student_id: index,
+        student_id,
         created_at: {
           [Op.between]: [subDays(date, 7), date],
         },
@@ -49,7 +63,7 @@ class CheckinController {
     }
 
     const checkin = await Checkin.create({
-      student_id: index,
+      student_id,
     });
 
     return res.json(checkin);
