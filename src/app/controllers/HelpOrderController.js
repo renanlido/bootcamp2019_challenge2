@@ -1,5 +1,8 @@
 import * as Yup from 'yup';
 
+import helpOrderMail from '../jobs/helpOrderMail';
+import Queue from '../../lib/Queue';
+
 import HelpOrder from '../models/HelpOrder';
 import Student from '../models/Student';
 
@@ -51,6 +54,11 @@ class HelpOrderController {
     }
 
     const helpOrder = await HelpOrder.create({ student_id, question });
+
+    await Queue.add(helpOrderMail.key, {
+      student,
+      helpOrder,
+    });
 
     return res.json(helpOrder);
   }
