@@ -1,3 +1,4 @@
+import * as Yup from 'yup';
 import Plan from '../models/Plan';
 
 class PlanController {
@@ -10,6 +11,16 @@ class PlanController {
   }
 
   async store(req, res) {
+    const schema = Yup.object().shape({
+      title: Yup.string().required(),
+      duration: Yup.number().required(),
+      price: Yup.number().required(),
+    });
+
+    if (!(await schema.isValid(req.body))) {
+      return res.status(400).json({ error: 'Valation fails.' });
+    }
+
     const { title } = req.body;
 
     const titleExists = await Plan.findOne({
@@ -20,21 +31,34 @@ class PlanController {
       res.status(400).json({ error: 'This title already exists' });
     }
 
-    const { id, duration, price } = await Plan.create(req.body);
+    const plan = await Plan.create(req.body);
 
-    return res.json({
-      id,
-      title,
-      duration,
-      price,
-    });
+    return res.json(plan);
   }
 
   async update(req, res) {
+    const schema = Yup.object().shape({
+      title: Yup.string(),
+      duration: Yup.number(),
+      price: Yup.number(),
+    });
+
+    if (!(await schema.isValid(req.body))) {
+      return res.status(400).json({ error: 'Valation fails.' });
+    }
+
     const { index } = req.params;
     const { title } = req.body;
 
     const plan = await Plan.findByPk(index);
+
+    if (!plan) {
+      return res.status(404).json({ error: 'Plan not found' });
+    }
+
+    if (!plan.title) {
+      return res.status(400).json({ error: 'ID plan is invalid' });
+    }
 
     if (title !== plan.title) {
       const planExists = await Plan.findOne({
@@ -46,14 +70,9 @@ class PlanController {
       }
     }
 
-    const { id, duration, price } = await plan.update(req.body);
+    const updatedPlan = await plan.update(req.body);
 
-    return res.json({
-      id,
-      title,
-      duration,
-      price,
-    });
+    return res.json(updatedPlan);
   }
 
   async delete(req, res) {
