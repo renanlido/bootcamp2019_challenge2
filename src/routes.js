@@ -20,6 +20,7 @@ routes.get('/students/:index/help_orders', HelpOrderController.index);
 routes.post('/students/:index/help_orders', HelpOrderController.store);
 
 routes.post('/students/:index/checkins', CheckinController.store);
+routes.get('/students/:index/checkins', CheckinController.index);
 
 routes.use(authMiddleware);
 

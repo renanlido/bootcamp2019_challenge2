@@ -1,4 +1,4 @@
-import { subDays } from 'date-fns';
+import { subDays, startOfDay, endOfDay } from 'date-fns';
 import { Op } from 'sequelize';
 import Checkin from '../models/Checkin';
 import Student from '../models/Student';
@@ -20,6 +20,7 @@ class CheckinController {
           attributes: ['id', 'name'],
         },
       ],
+      order: ['id'],
     });
 
     return res.json(checkins);
@@ -52,7 +53,7 @@ class CheckinController {
       where: {
         student_id,
         created_at: {
-          [Op.between]: [subDays(date, 7), date],
+          [Op.between]: [startOfDay(subDays(date, 7)), endOfDay(date)],
         },
       },
     });
