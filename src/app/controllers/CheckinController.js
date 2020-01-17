@@ -1,71 +1,65 @@
-import { subDays, startOfDay, endOfDay } from 'date-fns';
 import { Op } from 'sequelize';
+import { subDays, startOfDay, endOfDay } from 'date-fns';
 import Checkin from '../models/Checkin';
 import Student from '../models/Student';
-import Registration from '../models/Registration';
 
 class CheckinController {
   async index(req, res) {
-    const { index } = req.params;
+    const { id } = req.params;
 
     const checkins = await Checkin.findAll({
-      where: {
-        student_id: index,
-      },
-      attributes: ['id', 'created_at'],
+      where: { student_id: id },
+      attributes: ['id', 'student_id', 'checkin_date'],
       include: [
         {
           model: Student,
           as: 'student',
-          attributes: ['id', 'name'],
+          attributes: ['name', 'email'],
         },
       ],
-      order: ['id'],
     });
+
+    if (checkins.length < 1) {
+      return res
+        .status(200)
+        .json({ message: 'This student not have checkins' });
+    }
 
     return res.json(checkins);
   }
 
   async store(req, res) {
-    const student_id = req.params.index;
-    const student = await Student.findByPk(student_id);
-    const date = new Date();
+    const { id } = req.params;
 
-    if (!student) {
-      return res.status(404).json({ error: 'Student not exists or deleted' });
+    const studentExists = await Student.findByPk(id);
+
+    if (!studentExists) {
+      return res.status(400).json({ error: 'This student not exists' });
     }
 
-    const register = await Registration.findOne({
+    const atualDate = new Date();
+
+    const countCheckin = await Checkin.findAndCountAll({
       where: {
-        student_id,
-      },
-    });
-
-    if (register.canceled_at) {
-      return res.status(401).json({ error: 'Your plan is canceled' });
-    }
-
-    if (register.expired) {
-      return res.status(401).json({ error: 'Your plan is expired.' });
-    }
-
-    const checkins = await Checkin.findAndCountAll({
-      where: {
-        student_id,
-        created_at: {
-          [Op.between]: [startOfDay(subDays(date, 7)), endOfDay(date)],
+        student_id: id,
+        checkin_date: {
+          [Op.between]: [
+            subDays(startOfDay(atualDate), 7),
+            endOfDay(atualDate),
+          ],
         },
       },
     });
 
-    if (checkins.count >= 5) {
+    if (countCheckin.count >= 5) {
       return res
         .status(401)
-        .json({ error: 'You can only do 5 check in per week' });
+        .json({ message: "You've already checked in 5 this week" });
     }
 
     const checkin = await Checkin.create({
-      student_id,
+      student_id: id,
+      checkin_date: new Date(),
     });
 
     return res.json(checkin);

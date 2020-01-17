@@ -4,25 +4,21 @@ import Student from '../models/Student';
 class StudentController {
   async index(req, res) {
     const students = await Student.findAll({
-      attributes: ['id', 'name', 'email'],
+      attributes: ['id', 'name', 'email', 'year_birth', 'weight', 'height'],
       order: ['id'],
     });
-
     return res.json(students);
   }
 
   async store(req, res) {
-    // Validation schema creation new student
     const schema = Yup.object().shape({
       name: Yup.string().required(),
       email: Yup.string()
         .email()
         .required(),
-      yearBirth: Yup.number()
-        .integer()
-        .max(4),
-      weight: Yup.number(),
-      height: Yup.number(),
+      year_birth: Yup.number().required(),
+      weight: Yup.number().required(),
+      height: Yup.number().required(),
     });
 
     if (!(await schema.isValid(req.body))) {
@@ -34,62 +30,51 @@ class StudentController {
     });
 
     if (studentExists) {
-      return res.status(400).json({ error: 'Student already exists' });
+      return res.status(400).json({ error: 'This student already exists' });
     }
 
-    const {
-      id,
-      name,
-      email,
-      year_birth,
-      weight,
-      height,
-    } = await Student.create(req.body);
+    const { name, email, year_birth, weight, height } = await Student.create(
+      req.body
+    );
 
-    return res.json({
-      id,
-      name,
-      email,
-      year_birth,
-      weight,
-      height,
-    });
+    return res.json({ name, email, year_birth, weight, height });
   }
 
-  async update(req, res) {
-    // Validation schema update Student
+  async update(req, res, next) {
     const schema = Yup.object().shape({
       name: Yup.string(),
       email: Yup.string().email(),
-      yearBirth: Yup.number()
-        .integer()
-        .max(4),
+      year_birth: Yup.number(),
       weight: Yup.number(),
       height: Yup.number(),
     });
 
     if (!(await schema.isValid(req.body))) {
-      return res.status(400).json({ error: 'Validation Fails' });
+      return res.status(400).json({ error: 'Validation fails' });
     }
-
     const { email } = req.body;
     const { index } = req.params;
 
-    const student = await Student.findByPk(index, {
-      attributes: ['id', 'name', 'email', 'year_birth', 'weight', 'height'],
-    });
+    const student = await Student.findByPk(index);
 
     if (email !== student.email) {
       const studentExists = await Student.findOne({ where: { email } });
 
       if (studentExists) {
-        return res.status(400).json({ error: 'Student already exists' });
+        return res.status(400).json({ error: 'This student alreadry exists' });
       }
     }
 
-    await student.update(req.body);
+    const { name, year_birth, weight, height } = req.body;
 
-    return res.json(student);
+    try {
+      await student.update(req.body);
+      next();
+    } catch (error) {
+      res.status(400).json({ error: 'Problem on server' });
+    }
+
+    return res.json({ name, email, year_birth, weight, height });
   }
 }
 

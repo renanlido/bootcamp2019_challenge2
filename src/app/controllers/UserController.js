@@ -3,16 +3,12 @@ import User from '../models/User';
 
 class UserController {
   async index(req, res) {
-    const users = await User.findAll({
-      attributes: ['id', 'name', 'email'],
-      order: ['id'],
-    });
+    const users = await User.findAll();
 
     return res.json(users);
   }
 
   async store(req, res) {
-    // Validation schema creation new user
     const schema = Yup.object().shape({
       name: Yup.string().required(),
       email: Yup.string()
@@ -24,25 +20,25 @@ class UserController {
     });
 
     if (!(await schema.isValid(req.body))) {
-      return res.status(400).json({ error: 'Validation Fails' });
+      return res.status(400).json({ error: 'Validation fails' });
     }
 
     const userExists = await User.findOne({ where: { email: req.body.email } });
 
     if (userExists) {
-      return res.status(400).json({ error: 'User already exists' });
+      return res.status(400).json({ error: 'This user already exists.' });
     }
 
     const { id, name, email } = await User.create(req.body);
-    return res.json({
-      id,
-      name,
-      email,
-    });
+
+    return res.json({ id, name, email });
   }
 
   async update(req, res) {
-    // Validation schema update user
+    /** NOTE Este método recebe atráves das rotas o userId vindo do middleware
+     * de autenticação;
+     */
+
     const schema = Yup.object().shape({
       name: Yup.string(),
       email: Yup.string().email(),
@@ -58,7 +54,7 @@ class UserController {
     });
 
     if (!(await schema.isValid(req.body))) {
-      return res.status(400).json({ error: 'Validation Fails' });
+      return res.status(400).json({ error: 'Validation fails' });
     }
 
     const { email, oldPassword } = req.body;
@@ -66,10 +62,12 @@ class UserController {
     const user = await User.findByPk(req.userId);
 
     if (email !== user.email) {
-      const userExists = await User.findOne({ where: { email } });
+      const userExists = await User.findOne({
+        where: { email },
+      });
 
       if (userExists) {
-        return res.status(400).json({ error: 'User already exists' });
+        return res.status(400).json({ error: 'This user already exists.' });
       }
     }
 
@@ -79,11 +77,7 @@ class UserController {
 
     const { id, name } = await user.update(req.body);
 
-    return res.json({
-      id,
-      name,
-      email,
-    });
+    return res.json({ id, name, email });
   }
 }
 

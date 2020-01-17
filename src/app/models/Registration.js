@@ -1,7 +1,7 @@
 import { isAfter } from 'date-fns';
 import Sequelize, { Model } from 'sequelize';
 
-class Registration extends Model {
+export default class Registration extends Model {
   static init(sequelize) {
     super.init(
       {
@@ -28,5 +28,3 @@ class Registration extends Model {
     this.belongsTo(models.Plan, { foreignKey: 'plan_id', as: 'plan' });
   }
 }
-
-export default Registration;

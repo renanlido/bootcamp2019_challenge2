@@ -1,37 +1,23 @@
 import * as Yup from 'yup';
-
-import helpOrderMail from '../jobs/helpOrderMail';
-import Queue from '../../lib/Queue';
-
 import HelpOrder from '../models/HelpOrder';
 import Student from '../models/Student';
 
+import AnswerMail from '../jobs/AnswerMail';
+import Queue from '../../lib/Queue';
+
 class HelpOrderController {
   async index(req, res) {
-    const student_id = req.params.index;
-
-    const student = await Student.findByPk(student_id);
-
-    if (!student) {
-      return res.status(404).json({ error: 'Student not found' });
-    }
-
-    const helpOrders = await HelpOrder.findAndCountAll({
-      where: { student_id },
+    const helpOrders = await HelpOrder.findAll({
+      where: { student_id: req.params.id },
       attributes: ['id', 'question', 'answer', 'answer_at'],
       include: [
         {
           model: Student,
           as: 'student',
-          attributes: ['id', 'name'],
+          attributes: ['name', 'email'],
         },
       ],
     });
-
-    if (helpOrders.count === 0) {
-      return res.status(200).json({ message: 'Do you not have help orders' });
-    }
-
     return res.json(helpOrders);
   }
 
@@ -41,25 +27,21 @@ class HelpOrderController {
     });
 
     if (!(await schema.isValid(req.body))) {
-      return res.status(400).json({ error: 'Validation Fails' });
+      return res.status(400).json({ error: 'Validation fails' });
     }
 
-    const { question } = req.body;
-    const student_id = req.params.index;
+    const { id } = req.params;
 
-    const student = await Student.findByPk(student_id);
+    const studentExists = await Student.findByPk(id);
 
-    if (!student) {
-      return res.status(404).json({ error: 'Student not found' });
+    if (!studentExists) {
+      return res.status(400).json({ error: 'This student not exists' });
     }
 
-    const helpOrder = await HelpOrder.create({ student_id, question });
-
-    await Queue.add(helpOrderMail.key, {
-      student,
-      helpOrder,
+    const helpOrder = await HelpOrder.create({
+      student_id: req.params.id,
+      question: req.body.question,
     });
-
     return res.json(helpOrder);
   }
 
@@ -69,21 +51,29 @@ class HelpOrderController {
     });
 
     if (!(await schema.isValid(req.body))) {
-      return res.status(400).json({ error: 'Validation Fails' });
+      return res.status(400).json({ error: 'Validation fails' });
     }
 
-    const id = req.params.index;
-    const { answer } = req.body;
+    const { id } = req.params;
 
-    const helpOrder = await HelpOrder.findByPk(id);
+    const helpOrder = await HelpOrder.findByPk(id, {
+      attributes: ['id', 'question', 'answer', 'answer_at'],
+      include: [
+        {
+          model: Student,
+          as: 'student',
+          attributes: ['name', 'email'],
+        },
+      ],
+    });
 
-    if (!helpOrder) {
-      return res.status(404).json({ error: 'Help order not found' });
-    }
+    helpOrder.answer = req.body.answer;
+    helpOrder.answer_at = new Date();
 
-    helpOrder.update({
-      answer,
-      answer_at: new Date(),
+    await helpOrder.save();
+
+    await Queue.add(AnswerMail.key, {
+      helpOrder,
     });
 
     return res.json(helpOrder);

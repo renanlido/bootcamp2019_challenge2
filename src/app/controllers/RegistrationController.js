@@ -1,37 +1,42 @@
+import { startOfDay, endOfDay, addMonths, parseISO, isBefore } from 'date-fns';
 import * as Yup from 'yup';
-import { addMonths, isBefore, parseISO, format } from 'date-fns';
-import { Op } from 'sequelize';
-// import ptBR from 'date-fns/locale/pt-BR';
-
-import registrationMail from '../jobs/registrationMail';
-import Queue from '../../lib/Queue';
-
 import Registration from '../models/Registration';
 import Plan from '../models/Plan';
 import Student from '../models/Student';
 
+import RegistrationMail from '../jobs/RegistrationMail';
+import Queue from '../../lib/Queue';
+
 class RegistrationController {
   async index(req, res) {
-    const entries = await Registration.findAll({
-      where: {
-        canceled_at: null,
-      },
-      attributes: ['id', 'start_date', 'end_date', 'price', 'expired'],
+    const { page = 1 } = req.query;
+    const registers = await Registration.findAll({
+      where: { canceled_at: null },
+      attributes: [
+        'id',
+        'start_date',
+        'end_date',
+        'price',
+        'expired',
+        'canceled_at',
+      ],
+      limit: 20,
+      offset: (page - 1) * 20,
       include: [
         {
           model: Student,
           as: 'student',
-          attributes: ['id', 'name'],
+          attributes: ['name', 'email'],
         },
         {
           model: Plan,
           as: 'plan',
-          attributes: ['id', 'title', 'duration', 'price'],
+          attributes: ['title', 'duration', 'price'],
         },
       ],
       order: ['id'],
     });
-    return res.json(entries);
+    return res.json(registers);
   }
 
   async store(req, res) {
@@ -42,59 +47,53 @@ class RegistrationController {
     });
 
     if (!(await schema.isValid(req.body))) {
-      return res.status(400).json({ error: 'Valation fails.' });
+      return res.status(400).json({ error: 'Validation fails' });
     }
 
     const { student_id, plan_id, start_date } = req.body;
 
-    const plan = await Plan.findByPk(plan_id);
+    const startDate = startOfDay(parseISO(start_date));
+
     const student = await Student.findByPk(student_id);
-
-    if (!plan) {
-      return res.status(404).json({ error: 'Plan not exists' });
-    }
-
-    const price = plan.price * plan.duration;
-
-    const parsedDate = parseISO(start_date);
-
-    if (isBefore(parsedDate, new Date())) {
-      return res.status(400).json({ error: 'Past date are not permited' });
-    }
-
-    const end_date = addMonths(parsedDate, plan.duration);
-
-    const activePlan = await Registration.findOne({
-      where: {
-        student_id,
-        canceled_at: null,
-      },
-      date: {
-        [Op.between]: [start_date, end_date],
-      },
+    const plan = await Plan.findByPk(plan_id);
+    const register = await Registration.findOne({
+      where: { student_id, canceled_at: null },
     });
 
-    if (activePlan) {
-      return res
-        .status(400)
-        .json({ error: 'There is already an active plan in this period.' });
+    if (!student) {
+      return res.status(400).json({ error: 'This student not exists' });
     }
 
-    const register = await Registration.create({
+    if (!plan) {
+      return res.status(400).json({ error: 'This plan not exists' });
+    }
+
+    if (register && register.expired === false) {
+      return res
+        .status(400)
+        .json({ error: 'This student already has an active plan' });
+    }
+
+    const endDate = addMonths(endOfDay(startDate), plan.duration);
+    const price = plan.price * plan.duration;
+
+    const registration = await Registration.create({
       student_id,
       plan_id,
-      start_date: parsedDate,
-      end_date,
+      start_date: startDate,
+      end_date: endDate,
       price,
     });
 
-    await Queue.add(registrationMail.key, {
+    await Queue.add(RegistrationMail.key, {
       student,
       plan,
-      end_date,
+      price,
+      startDate,
+      endDate,
     });
 
-    return res.json(register);
+    return res.json(registration);
   }
 
   async update(req, res) {
@@ -105,85 +104,94 @@ class RegistrationController {
     });
 
     if (!(await schema.isValid(req.body))) {
-      return res.status(400).json({ error: 'Valation fails.' });
+      return res.status(400).json({ error: 'Validation fails' });
     }
 
-    const { index } = req.params;
-    const { student_id, plan_id, start_date } = req.body;
+    const { plan_id, student_id, start_date } = req.body;
 
-    const register = await Registration.findOne({
-      where: {
-        id: index,
-        canceled_at: null,
-      },
-    });
+    const startDate = startOfDay(parseISO(start_date));
 
-    const plan = await Plan.findByPk(plan_id);
+    const register = await Registration.findByPk(req.params.id);
 
-    if (!register) {
-      return res.status(404).json({ error: 'register not exists' });
+    if (register.canceled_at) {
+      return res.status(400).json({ error: 'This plan has canceled' });
     }
 
-    if (!plan) {
-      return res.status(404).json({ error: 'Plan not exists' });
-    }
-
-    const price = plan.price * plan.duration;
-
-    const parsedDate = parseISO(start_date);
-
-    if (isBefore(parsedDate, new Date())) {
-      return res.status(400).json({ error: 'Past date are not permited' });
-    }
-
-    const end_date = format(
-      addMonths(parsedDate, plan.duration),
-      "yyyy-MM-dd'T'HH:mm:ssxxx"
-    );
-
-    // Checking for Active Registration
     if (student_id !== register.student_id) {
+      const student = await Student.findByPk(student_id);
       const registerExists = await Registration.findOne({
-        where: {
-          student_id,
-          canceled_at: null,
-        },
+        where: { student_id },
       });
 
-      if (registerExists) {
-        return res.status(400).json({
-          error:
-            'This student already has an active plan. Please change this plan.',
-        });
+      if (!student) {
+        return res.status(400).json({ error: 'This student does not exists' });
+      }
+
+      if (registerExists && registerExists.expired === false) {
+        return res
+          .status(400)
+          .json({ error: 'This student already has an active plan' });
       }
     }
 
-    // Update register
-    await register.update({
+    let { price, end_date } = register;
+
+    const plan = await Plan.findByPk(plan_id);
+
+    if (plan_id !== register.plan_id) {
+      if (!plan) {
+        return res.status(400).json({ error: 'This plan not exists' });
+      }
+      end_date = addMonths(endOfDay(startDate), plan.duration);
+      price = plan.price * plan.duration;
+    }
+
+    if (isBefore(end_date, new Date())) {
+      return res.status(400).json({ error: 'This date are not permited' });
+    }
+
+    const registerUpdate = await register.update({
       student_id,
       plan_id,
-      start_date: parsedDate,
+      start_date,
       end_date,
       price,
     });
 
-    return res.json(register);
+    return res.json(registerUpdate);
   }
 
   async delete(req, res) {
-    const { index } = req.params;
+    const register = await Registration.findByPk(req.params.id, {
+      attributes: [
+        'id',
+        'start_date',
+        'end_date',
+        'price',
+        'expired',
+        'canceled_at',
+      ],
+      include: [
+        {
+          model: Student,
+          as: 'student',
+          attributes: ['name', 'email'],
+        },
+        {
+          model: Plan,
+          as: 'plan',
+          attributes: ['title', 'duration', 'price'],
+        },
+      ],
+    });
 
-    const register = await Registration.findByPk(index);
+    if (register.expired) {
+      return res.status(401).json({ error: 'This plan has expired' });
+    }
 
     register.canceled_at = new Date();
 
-    try {
-      await register.save();
-    } catch (err) {
-      return res.status(400).json({
-        error: 'The registration was not canceled, an error occurred.',
-      });
-    }
+    await register.save();
 
     return res.json(register);
   }

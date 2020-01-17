@@ -1,10 +1,18 @@
-<strong>Olá {{ student }}!</strong>
+<strong>Olá, {{student}}</strong>
+<p>Seja muito bem vindo(a) Gympoint Academy</p>
 <p>
-  Você acaba de adquirir ao plano <strong>{{ plan }}</strong> com duração de
-  <strong>{{ duration }} meses</strong> pelo valor mensal de
-  <strong>{{ price }}</strong>.<br>
-  Este plano será válido até <strong>{{end_date}}</strong>.<br>
-</p><br><br>
-<strong><h2>Seja muito bem vindo(a)!!!</h1></strong>
+  Você acaba de assinar o seguinte plano:<br/>
+  <br />
+  <strong>Plano: </strong>{{plan}}<br/>
+  <strong>Prazo: </strong>{{duration}} mês(es)<br/>
+  <strong>Valor do plano: </strong>R$ {{planPrice}},00 por mês<br />
+  <strong>Valor total: </strong>R$ {{totalPrice}},00 <br />
+  <strong>Data de início: </strong>{{inicialDate}} <br />
+  <strong>Data de vencimento: </strong>{{finalDate}} <br />
+  <br />
+  <small>
+    Quaisquer dúvidas, procure nossa equipe na administração da academia ou faça uma
+    solictação pelo App!
+  </small>
 
-
+</p>

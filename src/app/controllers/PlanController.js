@@ -5,8 +5,8 @@ class PlanController {
   async index(req, res) {
     const plans = await Plan.findAll({
       attributes: ['id', 'title', 'duration', 'price'],
-      order: ['id'],
     });
+
     return res.json(plans);
   }
 
@@ -18,84 +18,69 @@ class PlanController {
     });
 
     if (!(await schema.isValid(req.body))) {
-      return res.status(400).json({ error: 'Valation fails.' });
+      return res.status(400).json({ error: 'Validation fails' });
     }
 
-    const { title } = req.body;
+    const planExists = await Plan.findOne({ where: { title: req.body.title } });
 
-    const titleExists = await Plan.findOne({
-      where: { title },
+    if (planExists) {
+      return res.status(400).json({ error: 'This plan already exists' });
+    }
+
+    const { title, duration, price } = await Plan.create(req.body);
+
+    return res.json({
+      title,
+      duration,
+      price,
     });
-
-    if (titleExists) {
-      res.status(400).json({ error: 'This title already exists' });
-    }
-
-    const plan = await Plan.create(req.body);
-
-    return res.json(plan);
   }
 
   async update(req, res) {
     const schema = Yup.object().shape({
-      title: Yup.string(),
-      duration: Yup.number(),
-      price: Yup.number(),
+      title: Yup.string().required(),
+      duration: Yup.number().required(),
+      price: Yup.number().required(),
     });
 
     if (!(await schema.isValid(req.body))) {
-      return res.status(400).json({ error: 'Valation fails.' });
+      return res.status(400).json({ error: 'Validation fails' });
     }
 
-    const { index } = req.params;
     const { title } = req.body;
+    const { id } = req.params;
 
-    const plan = await Plan.findByPk(index);
+    const plan = await Plan.findByPk(id);
+    const planExists = await Plan.findOne({ where: { title } });
 
-    if (!plan) {
-      return res.status(404).json({ error: 'Plan not found' });
+    if (planExists) {
+      return res.status(400).json({ error: 'This plan already exists' });
     }
 
-    if (!plan.title) {
-      return res.status(400).json({ error: 'ID plan is invalid' });
-    }
+    const { duration, price } = await plan.update(req.body);
 
-    if (title !== plan.title) {
-      const planExists = await Plan.findOne({
-        where: { title },
-      });
-
-      if (planExists) {
-        return res.status(400).json({ error: 'This title already exists' });
-      }
-    }
-
-    const updatedPlan = await plan.update(req.body);
-
-    return res.json(updatedPlan);
+    return res.json({ title, duration, price });
   }
 
   async delete(req, res) {
-    const { index } = req.params;
-    const plan = await Plan.findByPk(index);
+    const { id } = req.params;
+    const planExists = await Plan.findByPk(id);
 
-    if (!plan) {
-      res.status(400).json({ error: "This plain don't exists or deleted" });
+    if (!planExists) {
+      return res.status(400).json({ error: 'This plan not exists' });
     }
 
     try {
-      await Plan.destroy({
-        where: {
-          id: index,
-        },
-      });
+      await Plan.destroy({ where: { id } });
     } catch (error) {
-      return res.json(error);
+      return res.status(400).json(error);
     }
 
-    return res.status(200).json({
-      message: `Plan ${plan.title} deleted with success`,
+    const plans = await Plan.findAll({
+      attributes: ['id', 'title', 'duration', 'price'],
     });
+
+    return res.json(plans);
   }
 }
 
